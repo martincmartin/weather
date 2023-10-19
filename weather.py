@@ -50,6 +50,8 @@ MORNING_CLOTHING_BOX = (800 - 256, 128 + 25, 800 - 128, 480)
 AFTERNOON_CLOTHING_BOX = (800 - 128, 128 + 25, 800, 480)
 CLOTHING_BOX = (800 - (128 + 64), 128 + 25, 800 - 64, 480)
 
+GAP_BETWEEN_GRAPH_AND_LABELS = 10
+
 # If using rtl_433 to read a physical, outdoor temperature sensor, only listen
 # to the model, ID and channel specified here.
 RTL_433_MODEL = "LaCrosse-TX141THBv2"
@@ -434,7 +436,7 @@ def plot_graph(periods, image, rect):
     graph_left = rect[0] + y_label_width
     graph_right = rect[2]
     graph_top = rect[1]
-    graph_bottom = rect[3] - x_label_height
+    graph_bottom = rect[3] - x_label_height - GAP_BETWEEN_GRAPH_AND_LABELS
 
     # Map low_temp to bottom of rect, and high_temp to top.
     def temp_to_y(temp):
@@ -481,7 +483,7 @@ def plot_graph(periods, image, rect):
             text_datetime = this_datetime + timedelta(hours=12)
             if text_datetime < end_datetime:
                 draw.text(
-                    (to_x(text_datetime), graph_bottom),
+                    (to_x(text_datetime), graph_bottom + GAP_BETWEEN_GRAPH_AND_LABELS),
                     this_datetime.strftime("%a"),
                     font=font,
                     fill=0,
@@ -505,7 +507,7 @@ def plot_graph(periods, image, rect):
                 text = this_datetime.strftime("%-I%p").lower()
 
             draw.text(
-                (x, graph_bottom),
+                (x, graph_bottom + GAP_BETWEEN_GRAPH_AND_LABELS),
                 text,
                 font=font,
                 fill=0,
