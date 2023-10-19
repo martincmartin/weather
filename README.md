@@ -98,6 +98,13 @@ The last step was to install and run [`rtl_433`](https://github.com/merbanan/rtl
 Every 50 seconds, it would print the temperature and humidity from my outdoor
 weather sensor!
 
+<p float="left">
+    <img src="images/pi-dongle-antenna.jpg" width="49%">
+</p>
+That's the Raspberry Pi 3, RTL-SDR v3 dongle, and antenna.  The brains of the operation.
+
+<p/>
+
 So now that we know the actual temperature, how accurate is OpenWeatherMap's
 "current temperature"?
 
