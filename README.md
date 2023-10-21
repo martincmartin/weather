@@ -7,7 +7,7 @@ This is a weather display for the [invisible computers](https://www.invisible-co
     <img src="images/two-clothing-icons.jpg"/>
 </p>
 
-The filled grey areas in the graph are probability of precipitation.  The
+The filled grey areas in the graphs are probability of precipitation.  The
 vertical bar with the darker background is 3pm to 4pm, when the kids walk home
 from the school bus.  The number is the current temperature.  The two clothing icons are
 what to wear now, and what to wear between 3pm and 4pm.  If they're the same, or
