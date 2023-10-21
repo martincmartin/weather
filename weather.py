@@ -569,7 +569,7 @@ def draw_icon(forecast, image, left, top):
         elif weather_id == 511:
             precipitation = Precipitation.SNOW
         else:
-            precipitation = Preciptation.RAINY
+            precipitation = Precipitation.RAINY
     elif weather_id >= 300:
         precipitation = Precipitation.DRIZZLE
     else:
@@ -688,9 +688,9 @@ def get_image():
     periods = forecast.periods
 
     # Plot graph for next 24 hours.
-    plot_graph(periods[0:24], image, (20, 25, 543, 220))
+    plot_graph(periods[0:24], image, (20, 25, 543, 215))
     # Plot graph for the coming week.
-    plot_graph(periods, image, (20, 265, 543, 460))
+    plot_graph(periods, image, (20, 270, 543, 460))
 
     return image
 
