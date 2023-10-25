@@ -4,7 +4,8 @@ This is a weather display for the [invisible computers](https://www.invisible-co
 
 <p float="left">
     <img src="images/on-wall.jpg"/>
-    <img src="images/two-clothing-icons.jpg"/>
+    <img src="images/two-clothing-icons.jpg" width="49%"/>
+    <img src="images/cool-warm.jpg" width="49%"/>
 </p>
 
 The filled grey areas in the graphs are probability of precipitation.  The
