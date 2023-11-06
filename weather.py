@@ -20,6 +20,15 @@ import argparse
 # The screen is 800 x 480.
 
 
+# For using LaCrosse weather sensor, with RTL-SDR's dongle, align the antenna
+# vertically.  Each arm of the dipole antenna should be aobut 6.5 inches, which
+# is a quarter wavelength for 433 MHz.  This is roughly the fully extended
+# length of the shorter antenna that comes with the RTL-SDR, so that's handy.  I
+# did a simple experiment and verified that vertical is best, which makes sense
+# because the temperature sensor is also oriented vertically, so presumably so
+# it its antenna.
+
+
 # Uses weather.gov, see here:
 #
 # https://weather-gov.github.io/api/general-faqs
@@ -53,9 +62,11 @@ CLOTHING_BOX = (800 - (128 + 64), 128 + 25, 800 - 64, 480)
 GAP_BETWEEN_GRAPH_AND_LABELS = 10
 
 # If using rtl_433 to read a physical, outdoor temperature sensor, only listen
-# to the model, ID and channel specified here.
+# to the model and channel specified here.  ID changes when you change the
+# batteries on the sensor, so to support ID, I'd need some kind of pairing
+# process.  Currently, mine is the only LaCrosse sensor that I receive, so model
+# and channel is more than enough.
 RTL_433_MODEL = "LaCrosse-TX141THBv2"
-RTL_433_ID = 84
 RTL_433_CHANNEL = 0
 
 # Set current directory to the directory containing this script.
@@ -132,7 +143,7 @@ def rtl_433_loop(local_weather: LocalWeather):
         time.sleep(1)
 
     proc = subprocess.Popen(
-        [have_rtl_433, "-F", "json", "-M", "level"],
+        [have_rtl_433, "-Y", "autolevel", "-F", "json", "-M", "level"],
         shell=False,
         bufsize=1,
         text=True,
@@ -144,7 +155,8 @@ def rtl_433_loop(local_weather: LocalWeather):
         parsed = json.loads(line)
         if (
             parsed["model"] == RTL_433_MODEL
-            and parsed["id"] == RTL_433_ID
+            # id changes when you change the batteries.
+            # and parsed["id"] == RTL_433_ID
             and parsed["channel"] == RTL_433_CHANNEL
         ):
             local_weather.set(
@@ -620,18 +632,27 @@ def get_image():
     print(f"OWM current temp: {owm_temperature}")
 
     ##### Get the current temperature.  Should probably be made into a function.
-    current_temperature = None
     with local_weather.lock:
         battery_ok = local_weather.battery_ok
-        if local_weather.time > datetime.datetime.now() - timedelta(minutes=5):
-            current_temperature = local_weather.temperature
+        current_temperature = local_weather.temperature
+        temperature_elapsed = (
+            datetime.datetime.now() - local_weather.time
+        ).total_seconds()
 
     if not have_rtl_433:
         current_temperature = forecast.periods[0].temp
+        temperature_elapsed = 0
 
     if current_temperature is not None:
-        text = str(round(current_temperature)) + "\N{DEGREE SIGN}"
-        current_icon = get_clothing(current_temperature, current_raining)
+        if temperature_elapsed < 5 * 60:
+            text = str(round(current_temperature)) + "\N{DEGREE SIGN}"
+            current_icon = get_clothing(current_temperature, current_raining)
+        else:
+            if temperature_elapsed < 100 * 60:
+                text = str(round(temperature_elapsed / 60)) + "m"
+            else:
+                text = "--"
+            current_icon = None
     else:
         current_icon = None
         text = "--"
