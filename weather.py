@@ -316,14 +316,15 @@ def fetch_json(url):
     while True:
         try:
             # Send an HTTP GET request to the URL
-            with urllib.request.urlopen(url) as response:
+            with urllib.request.urlopen(url, timeout=15) as response:
                 if response.status == 200:
                     # Read the response data and decode it as JSON
                     return json.loads(response.read().decode("utf-8"))
                 else:
                     raise Exception(f"request failed with status {response.status}")
         except Exception as e:
-            print(f"Received error {e}, trying again in 6 seconds.")
+            print(f"When fetching {url}")
+            print(f"    received error {e}, trying again in 6 seconds.")
         time.sleep(6)
 
 
@@ -725,6 +726,10 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             image = get_image().convert("1")
             image.save(self.wfile, format="BMP")
+            print("Done sending image response.", flush=True)
+            if False:
+                with open(f"/tmp/weather-{datetime.datetime.now()}.bmp", "wb") as f:
+                    image.save(f, format="BMP")
         else:
             print("Got some other GET request.", flush=True)
             self.send_response(404)
