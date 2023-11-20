@@ -227,7 +227,7 @@ def get_clothing(temperature, is_raining):
     # feel warmer than the measured or forecast temperatures, which are always
     # in the shade.
     clothing = clothing_raining if is_raining else clothing_not_raining
-    if temperature < 39.5:
+    if temperature < 44.5:
         return clothing[TemperatureBand.COLD]
     elif temperature < 70:
         return clothing[TemperatureBand.COOL]
