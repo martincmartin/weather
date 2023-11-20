@@ -321,10 +321,12 @@ def fetch_json(url):
                     # Read the response data and decode it as JSON
                     return json.loads(response.read().decode("utf-8"))
                 else:
-                    raise Exception(f"request failed with status {response.status}")
+                    raise Exception(
+                        f"request failed with status {response.status}", flush=True
+                    )
         except Exception as e:
             print(f"When fetching {url}")
-            print(f"    received error {e}, trying again in 6 seconds.")
+            print(f"    received error {e}, trying again in 6 seconds.", flush=True)
         time.sleep(6)
 
 
