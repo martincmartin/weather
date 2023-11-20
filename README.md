@@ -1,4 +1,4 @@
-# E-Paper Weather Display for Invisible Computers
+# Whether the Weather is Wetter: E-Paper Weather Display for Invisible Computers
 
 This is a weather display for the [invisible computers](https://www.invisible-computers.com/) E-Paper smart screen, inspired by [E-ink is so Retropunk](https://rmkit.dev/eink-is-so-retropunk/) and [ESP32 e-paper weather display](https://github.com/lmarzen/esp32-weather-epd).
 
