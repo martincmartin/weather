@@ -719,24 +719,44 @@ def get_image():
 
 class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/weather.bmp":
-            print("Someone wants to know whether the weather is wetter.", flush=True)
-            self.send_response(200)
-            self.send_header("Content-type", "image/bmp")
-            self.end_headers()
-            image = get_image().convert("1")
-            image.save(self.wfile, format="BMP")
-            print("Done sending image response.", flush=True)
-            if False:
-                with open(f"/tmp/weather-{datetime.datetime.now()}.bmp", "wb") as f:
-                    image.save(f, format="BMP")
-        else:
-            print("Got some other GET request.", flush=True)
-            self.send_response(404)
+        start = time.monotonic()
+        try:
+            if self.path == "/weather.bmp":
+                print(
+                    "Someone wants to know whether the weather is wetter.", flush=True
+                )
+                image = get_image().convert("1")
+                self.send_response(200)
+                self.send_header("Content-type", "image/bmp")
+                self.end_headers()
+                # image = Image.open("/tmp/bad.bmp")
+                # image.save(self.wfile, format="BMP")
+
+                image.save(self.wfile, format="BMP")
+
+                print(
+                    f"Done sending image response in {time.monotonic() - start} sec.",
+                    flush=True,
+                )
+                if False:
+                    with open(f"/tmp/weather-{datetime.datetime.now()}.bmp", "wb") as f:
+                        image.save(f, format="BMP")
+            else:
+                print("Got some other GET request.", flush=True)
+                self.send_response(404)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(b"<html><head><title>Not found.</title></head>")
+                self.wfile.write(b"<body><p>Don't hack me go away.</p>")
+                self.wfile.write(b"</body></html>")
+        except Exception:
+            self.send_response(500)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write(b"<html><head><title>Not found.</title></head>")
-            self.wfile.write(b"<body><p>Don't hack me go away.</p>")
+            self.wfile.write(b"<html><head><title>Python Exception.</title></head>")
+            self.wfile.write(b"<body><p>Python code threw an exception.</p>")
+            print(traceback.format_exc(), flush=True)
+            # self.wfile.write(traceback.format_exc()) Convert to binary?
             self.wfile.write(b"</body></html>")
 
 
