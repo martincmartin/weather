@@ -29,6 +29,15 @@ import argparse
 # it its antenna.
 
 
+# Ah, weather APIs.
+#
+# weather.gov goes down (DNS entry not found of all things) or times out fairly
+# often, so it would be great to move away.  It went down for a week and a half
+# straight over winter holidays 2023.  However, the OpenWeatherMaps API only has
+# hourly forecasts for two days, not seven.  The hourly forecast for 4 days
+# costs $180/mo, so that's out.  I like my seven day temperature graph!  It does
+# have 3 hour forecast for 5 days, so I guess we'll settle for that.
+
 # Uses weather.gov, see here:
 #
 # https://weather-gov.github.io/api/general-faqs
@@ -40,7 +49,7 @@ import argparse
 
 # A probability of precipitation greather than this will show the raining
 # clothing icon.
-RAINING_THRESHOLD = 33.333
+RAINING_THRESHOLD = 0.33333
 
 PRECIPITATION_GREY = (255 * 2) // 3
 
@@ -175,25 +184,32 @@ if have_rtl_433:
 
 
 class Period:
-    def __init__(self, period_dict, timezone):
-        self.start = datetime.datetime.fromisoformat(
-            period_dict["startTime"]
-        ).astimezone(timezone)
-        self.end = datetime.datetime.fromisoformat(period_dict["endTime"]).astimezone(
-            timezone
-        )
+    def __init__(self, period_dict, timezone, is_open_weather_map=False):
+        if is_open_weather_map:
+            self.start = datetime.datetime.fromtimestamp(period_dict["dt"], timezone)
+            self.end = self.start + datetime.timedelta(hours=1)
+            self.temp = period_dict["temp"]
+            self.precipitation = period_dict["pop"]
+        else:
+            self.start = datetime.datetime.fromisoformat(
+                period_dict["startTime"]
+            ).astimezone(timezone)
+            self.end = datetime.datetime.fromisoformat(
+                period_dict["endTime"]
+            ).astimezone(timezone)
+            self.temp = period_dict["temperature"]
+            self.precipitation = (
+                period_dict["probabilityOfPrecipitation"]["value"] / 100.0 or 0
+            )
         self.mid = self.start + (self.end - self.start) / 2
-        self.temp = period_dict["temperature"]
-        self.precipitation = period_dict["probabilityOfPrecipitation"]["value"] or 0
 
     def __repr__(self):
         return f"{self.start} to {self.end} temp: {self.temp}"
 
 
 class Forecast:
-    def __init__(self, isDaytime, shortForecast: str, periods, daily):
+    def __init__(self, isDaytime, periods, daily):
         self.isDaytime = isDaytime
-        self.shortForecast = shortForecast
         self.periods = periods
         self.daily = daily
 
@@ -313,56 +329,58 @@ weather_icons = load_weather_icons()
 
 
 def fetch_json(url):
-    while True:
-        try:
-            # Send an HTTP GET request to the URL
-            with urllib.request.urlopen(url, timeout=15) as response:
-                if response.status == 200:
-                    # Read the response data and decode it as JSON
-                    return json.loads(response.read().decode("utf-8"))
-                else:
-                    raise Exception(
-                        f"request failed with status {response.status}", flush=True
-                    )
-        except Exception as e:
-            print(f"When fetching {url}")
-            print(f"    received error {e}, trying again in 6 seconds.", flush=True)
-        time.sleep(6)
+    # Send an HTTP GET request to the URL
+    with urllib.request.urlopen(url, timeout=15) as response:
+        if response.status == 200:
+            # Read the response data and decode it as JSON
+            return json.loads(response.read().decode("utf-8"))
+        else:
+            raise Exception(f"request failed with status {response.status}", flush=True)
 
 
 def get_forecast(latitude, longitude):
-    # To do: replace weather.gov with OpenWeatherMap.
-    url = f"https://api.weather.gov/points/{latitude:.4f},{longitude:.4f}"
-
-    points = fetch_json(url)
-    properties = points["properties"]
-    timezone = ZoneInfo(properties["timeZone"])
-
-    # According to an answer to my question at
-    # https://github.com/weather-gov/api/discussions/660
-    #
-    # "/gridpoints is the raw forecast data produced by the WFO, keyed by
-    # weather element /gridpoints/.../forecast is the processed version of
-    # /gridpoints, ready for publication on a forecast site, keyed by time"
-    #
-    # https://en.wikipedia.org/wiki/ISO_8601#Durations
-    #
-    forecast = fetch_json(properties["forecast"])
-    first_period = forecast["properties"]["periods"][0]
-    isDaytime = first_period["isDaytime"]
-    shortForecast = first_period["shortForecast"]
-
-    forecastHourly = fetch_json(properties["forecastHourly"])
-
-    periods_json = forecastHourly["properties"]["periods"]
-    periods = [Period(period, timezone) for period in periods_json]
-    if periods[0].end < datetime.datetime.now(datetime.timezone.utc):
-        print("Trimming first period, since the end has already passed.")
-        periods = periods[1:]
-
     owm_data = owm.get()
 
-    return Forecast(isDaytime, shortForecast, periods, owm_data["daily"])
+    timezone = ZoneInfo(owm_data["timezone"])
+
+    current = owm_data["current"]
+    isDaytime = current["sunrise"] <= current["dt"] <= current["sunset"]
+
+    periods = [Period(period, timezone, True) for period in owm_data["hourly"]]
+
+    # TODO: Extend with 5 day 3-hourly forecast:
+    # https://openweathermap.org/forecast5
+
+    return Forecast(isDaytime, periods, owm_data["daily"])
+
+    # url = f"https://api.weather.gov/points/{latitude:.4f},{longitude:.4f}"
+
+    # points = fetch_json(url)
+    # properties = points["properties"]
+    # timezone = ZoneInfo(properties["timeZone"])
+
+    # # According to an answer to my question at
+    # # https://github.com/weather-gov/api/discussions/660
+    # #
+    # # "/gridpoints is the raw forecast data produced by the WFO, keyed by
+    # # weather element /gridpoints/.../forecast is the processed version of
+    # # /gridpoints, ready for publication on a forecast site, keyed by time"
+    # #
+    # # https://en.wikipedia.org/wiki/ISO_8601#Durations
+    # #
+    # forecast = fetch_json(properties["forecast"])
+    # first_period = forecast["properties"]["periods"][0]
+    # isDaytime = first_period["isDaytime"]
+
+    # forecastHourly = fetch_json(properties["forecastHourly"])
+
+    # periods_json = forecastHourly["properties"]["periods"]
+    # periods = [Period(period, timezone) for period in periods_json]
+    # if periods[0].end < datetime.datetime.now(datetime.timezone.utc):
+    #     print("Trimming first period, since the end has already passed.")
+    #     periods = periods[1:]
+
+    # return Forecast(isDaytime, periods, owm_data["daily"])
 
 
 # We get 1,000 calls a day for free, but calling once a minute would be 1,440
@@ -381,6 +399,8 @@ class OpenWeatherMap:
         current_time = time.monotonic()
         if self.last_time is None or current_time > self.last_time + 5 * 60:
             url = f"https://api.openweathermap.org/data/3.0/onecall?lat={self.latitude}&lon={self.longitude}&exclude=minutely&units=imperial&appid={self.appid}"
+            # Minutely only gives precipitation in mm/hr.  No temperature.
+            # Hourly is for 48 hours.
             self.last_data = fetch_json(url)
             self.last_time = current_time
         return self.last_data
@@ -471,7 +491,7 @@ def plot_graph(periods, image, rect):
     #####  Draw the % precipitation polygon.
     precip_polygon = [(graph_left, graph_bottom)]
     for period in periods:
-        y = period.precipitation / 100.0 * (graph_top - graph_bottom) + graph_bottom
+        y = period.precipitation * (graph_top - graph_bottom) + graph_bottom
         precip_polygon += [(to_x(period.start), y), (to_x(period.end), y)]
 
     precip_polygon.append((graph_right, graph_bottom))
@@ -548,8 +568,7 @@ def plot_graph(periods, image, rect):
                 )
                 if period.precipitation > 0:
                     precipitation_y = (
-                        period.precipitation / 100.0 * (graph_top - graph_bottom)
-                        + graph_bottom
+                        period.precipitation * (graph_top - graph_bottom) + graph_bottom
                     )
                     draw.rectangle(
                         (left, precipitation_y, right, graph_bottom - 1),
@@ -592,7 +611,7 @@ def draw_icon(forecast, image, left, top):
 
     # I read somewhere that 20 mph is the threshold for "windy".
     windy = today["wind_speed"] > 20
-    print(f'wind_speed = {today["wind_speed"]}, clouds = {today["clouds"]}')
+    # print(f'wind_speed = {today["wind_speed"]}, clouds = {today["clouds"]}')
 
     if today["clouds"] <= 25:
         cloudiness = Cloudiness.CLEAR
@@ -629,7 +648,12 @@ def get_image():
     image = Image.new("L", (800, 480), 255)
     draw = ImageDraw.Draw(image)
 
-    forecast = get_forecast(LATITUDE, LONGITUDE)
+    try:
+        forecast = get_forecast(LATITUDE, LONGITUDE)
+    except Exception as e:
+        forecast = e
+
+    owm.get()
 
     current_raining, owm_temperature = get_current(LATITUDE, LONGITUDE)
     print(f"OWM current temp: {owm_temperature}")
@@ -643,7 +667,9 @@ def get_image():
         ).total_seconds()
 
     if not have_rtl_433:
-        current_temperature = forecast.periods[0].temp
+        current_temperature = (
+            0 if isinstance(forecast, Exception) else forecast.periods[0].temp
+        )
         temperature_elapsed = 0
 
     if current_temperature is not None:
@@ -665,13 +691,16 @@ def get_image():
     # This doesn't take into account daylight saving, and so will do the wrong
     # thing between midnight and two am, twice a year.  I can live with that.
     school = now.replace(hour=15, minute=40, second=0, microsecond=0)
-    school_periods = [
-        p
-        # Skip the first period, since if they're comming home from school
-        # within the hour, we want the actual temperature & rain, not forecast.
-        for p in forecast.periods[1:]
-        if p.start < school and p.end > school
-    ]
+    if isinstance(forecast, Exception):
+        school_periods = []
+    else:
+        school_periods = [
+            p
+            # Skip the first period, since if they're comming home from school
+            # within the hour, we want the actual temperature & rain, not forecast.
+            for p in forecast.periods[1:]
+            if p.start < school and p.end > school
+        ]
     school_icon = None
     if school_periods:
         assert len(school_periods) == 1
@@ -704,17 +733,29 @@ def get_image():
             anchor="mm",
         )
 
-        draw_icon(forecast, image, 544, 25)
+        if not isinstance(forecast, Exception):
+            draw_icon(forecast, image, 544, 25)
     else:
         draw.multiline_text(
             (image.size[0] - 128, 89), "Battery\nLow", font=font, fill=0, anchor="mm"
         )
-    periods = forecast.periods
+    if isinstance(forecast, Exception):
+        if str(forecast) != "HTTP Error 502: Bad Gateway":
+            font = ImageFont.truetype("Pillow/Tests/fonts/DejaVuSans.ttf", 32)
+            draw.text(
+                ((20 + 543) // 2, (25 + 460) // 2),
+                str(forecast),
+                font=font,
+                fill=0,
+                anchor="mm",
+            )
+    else:
+        periods = forecast.periods
 
-    # Plot graph for next 24 hours.
-    plot_graph(periods[0:24], image, (20, 25, 543, 215))
-    # Plot graph for the coming week.
-    plot_graph(periods, image, (20, 270, 543, 460))
+        # Plot graph for next 24 hours.
+        plot_graph(periods[0:24], image, (20, 25, 543, 215))
+        # Plot graph for the coming week.
+        plot_graph(periods, image, (20, 270, 543, 460))
 
     return image
 
@@ -752,6 +793,7 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(b"<body><p>Don't hack me go away.</p>")
                 self.wfile.write(b"</body></html>")
         except Exception:
+            print("Got exception!", flush=True)
             self.send_response(500)
             self.send_header("Content-type", "text/html")
             self.end_headers()
