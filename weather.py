@@ -15,6 +15,8 @@ import subprocess
 import threading
 import time
 import argparse
+import signal
+import traceback
 
 
 # The screen is 800 x 480.
@@ -46,6 +48,9 @@ import argparse
 #
 # https://api.openweathermap.org/data/2.5/weather?lat=[your-latitutde]&lon=[your-longitude]&appid=[your-app-id]
 
+# tomorrow.io:
+# Minutely is for an hour.
+# Hourly is for 5 days.
 
 # A probability of precipitation greather than this will show the raining
 # clothing icon.
@@ -77,6 +82,15 @@ GAP_BETWEEN_GRAPH_AND_LABELS = 10
 # and channel is more than enough.
 RTL_433_MODEL = "LaCrosse-TX141THBv2"
 RTL_433_CHANNEL = 0
+
+
+def print_stack(sig, frame):
+    print("**********  In signal handler, printing stack frame.  **********")
+    print("".join(traceback.format_stack(frame)))
+    print("**********  Exiting signal handler.  **********", flush=True)
+
+
+signal.signal(signal.SIGUSR1, print_stack)
 
 # Set current directory to the directory containing this script.
 os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
@@ -123,11 +137,13 @@ class LocalWeather:
         self.battery_ok = True
 
     def set(self, time, temperature, humidity, battery_ok):
+        print("Entered LocalWeather.set()", flush=True)
         with self.lock:
             self.time = time
             self.temperature = temperature
             self.humidity = humidity
             self.battery_ok = battery_ok
+        print("Exiting LocalWeather.set()", flush=True)
 
 
 local_weather = LocalWeather()
@@ -184,23 +200,11 @@ if have_rtl_433:
 
 
 class Period:
-    def __init__(self, period_dict, timezone, is_open_weather_map=False):
-        if is_open_weather_map:
-            self.start = datetime.datetime.fromtimestamp(period_dict["dt"], timezone)
-            self.end = self.start + datetime.timedelta(hours=1)
-            self.temp = period_dict["temp"]
-            self.precipitation = period_dict["pop"]
-        else:
-            self.start = datetime.datetime.fromisoformat(
-                period_dict["startTime"]
-            ).astimezone(timezone)
-            self.end = datetime.datetime.fromisoformat(
-                period_dict["endTime"]
-            ).astimezone(timezone)
-            self.temp = period_dict["temperature"]
-            self.precipitation = (
-                period_dict["probabilityOfPrecipitation"]["value"] / 100.0 or 0
-            )
+    def __init__(self, start, end, temp, precipitation):
+        self.start = start
+        self.end = end
+        self.temp = temp
+        self.precipitation = precipitation
         self.mid = self.start + (self.end - self.start) / 2
 
     def __repr__(self):
@@ -208,7 +212,8 @@ class Period:
 
 
 class Forecast:
-    def __init__(self, isDaytime, periods, daily):
+    def __init__(self, timezone, isDaytime, periods, daily):
+        self.timezone = timezone
         self.isDaytime = isDaytime
         self.periods = periods
         self.daily = daily
@@ -338,6 +343,20 @@ def fetch_json(url):
             raise Exception(f"request failed with status {response.status}", flush=True)
 
 
+def get_long_range_forecast(timezone, latitude, longitude):
+    # See https://openweathermap.org/forecast5 for explanation.
+    # I think the 3 hour granularity for 5 days looks awful.
+    url = f"https://api.openweathermap.org/data/2.5/forecast?lat={latitude}&lon={longitude}&appid={OPENWEATHERMAP_APPID}&units=imperial"
+    result = fetch_json(url)
+    # print(json.dumps(result, indent=2))
+    periods = []
+    for period in result["list"]:
+        start = datetime.datetime.fromtimestamp(period["dt"], timezone)
+        end = start + datetime.timedelta(hours=3)
+        periods.append(Period(start, end, period["main"]["temp"], period["pop"]))
+    return periods
+
+
 def get_forecast(latitude, longitude):
     owm_data = owm.get()
 
@@ -346,41 +365,13 @@ def get_forecast(latitude, longitude):
     current = owm_data["current"]
     isDaytime = current["sunrise"] <= current["dt"] <= current["sunset"]
 
-    periods = [Period(period, timezone, True) for period in owm_data["hourly"]]
+    periods = []
+    for period in owm_data["hourly"]:
+        start = datetime.datetime.fromtimestamp(period["dt"], timezone)
+        end = start + datetime.timedelta(hours=1)
+        periods.append(Period(start, end, period["temp"], period["pop"]))
 
-    # TODO: Extend with 5 day 3-hourly forecast:
-    # https://openweathermap.org/forecast5
-
-    return Forecast(isDaytime, periods, owm_data["daily"])
-
-    # url = f"https://api.weather.gov/points/{latitude:.4f},{longitude:.4f}"
-
-    # points = fetch_json(url)
-    # properties = points["properties"]
-    # timezone = ZoneInfo(properties["timeZone"])
-
-    # # According to an answer to my question at
-    # # https://github.com/weather-gov/api/discussions/660
-    # #
-    # # "/gridpoints is the raw forecast data produced by the WFO, keyed by
-    # # weather element /gridpoints/.../forecast is the processed version of
-    # # /gridpoints, ready for publication on a forecast site, keyed by time"
-    # #
-    # # https://en.wikipedia.org/wiki/ISO_8601#Durations
-    # #
-    # forecast = fetch_json(properties["forecast"])
-    # first_period = forecast["properties"]["periods"][0]
-    # isDaytime = first_period["isDaytime"]
-
-    # forecastHourly = fetch_json(properties["forecastHourly"])
-
-    # periods_json = forecastHourly["properties"]["periods"]
-    # periods = [Period(period, timezone) for period in periods_json]
-    # if periods[0].end < datetime.datetime.now(datetime.timezone.utc):
-    #     print("Trimming first period, since the end has already passed.")
-    #     periods = periods[1:]
-
-    # return Forecast(isDaytime, periods, owm_data["daily"])
+    return Forecast(timezone, isDaytime, periods, owm_data["daily"])
 
 
 # We get 1,000 calls a day for free, but calling once a minute would be 1,440
@@ -443,7 +434,9 @@ def round_to_next_day(input_datetime):
 
 
 def plot_graph(periods, image, rect):
-    multiday = len(periods) >= 48
+    # multiday = False
+    multiday = periods[-1].end - periods[0].start > datetime.timedelta(hours=36)
+    connected = len(periods) > 48
 
     min_temp = min(p.temp for p in periods)
     max_temp = max(p.temp for p in periods)
@@ -552,10 +545,11 @@ def plot_graph(periods, image, rect):
             this_datetime += timedelta(hours=6)
 
     # Draw the actual temperatures.
-    if multiday:
+    if connected:
         xy = [(to_x(period.mid), temp_to_y(period.temp)) for period in periods]
         draw.line(xy, fill=0, width=1)
     else:
+        prev_y = None
         for period in periods:
             y = temp_to_y(period.temp)
             left = to_x(period.start)
@@ -576,10 +570,17 @@ def plot_graph(periods, image, rect):
                     )
 
             draw.line(
-                (to_x(period.start), y, to_x(period.end), y),
+                (left, y, right, y),
                 fill=0,
                 width=3,
             )
+            if prev_y is not None:
+                draw.line(
+                    (left, y, left, prev_y),
+                    fill=0,
+                    width=1,
+                )
+            prev_y = y
 
 
 def draw_icon(forecast, image, left, top):
@@ -650,21 +651,25 @@ def get_image():
 
     try:
         forecast = get_forecast(LATITUDE, LONGITUDE)
+        long_range_forecast = get_long_range_forecast(
+            forecast.timezone, LATITUDE, LONGITUDE
+        )
+
     except Exception as e:
         forecast = e
-
-    owm.get()
 
     current_raining, owm_temperature = get_current(LATITUDE, LONGITUDE)
     print(f"OWM current temp: {owm_temperature}")
 
     ##### Get the current temperature.  Should probably be made into a function.
+    print("About to grab local_weather.lock", flush=True)
     with local_weather.lock:
         battery_ok = local_weather.battery_ok
         current_temperature = local_weather.temperature
         temperature_elapsed = (
             datetime.datetime.now() - local_weather.time
         ).total_seconds()
+    print("Released local_weather.lock", flush=True)
 
     if not have_rtl_433:
         current_temperature = (
@@ -755,7 +760,7 @@ def get_image():
         # Plot graph for next 24 hours.
         plot_graph(periods[0:24], image, (20, 25, 543, 215))
         # Plot graph for the coming week.
-        plot_graph(periods, image, (20, 270, 543, 460))
+        plot_graph(long_range_forecast, image, (20, 270, 543, 460))
 
     return image
 
