@@ -337,6 +337,7 @@ def fetch_json(url):
     # Send an HTTP GET request to the URL
     with urllib.request.urlopen(url, timeout=15) as response:
         if response.status == 200:
+            print(response.getheaders())
             # Read the response data and decode it as JSON
             return json.loads(response.read().decode("utf-8"))
         else:
@@ -372,6 +373,20 @@ def get_forecast(latitude, longitude):
         periods.append(Period(start, end, period["temp"], period["pop"]))
 
     return Forecast(timezone, isDaytime, periods, owm_data["daily"])
+
+
+class QueryWithCaching:
+    def __init__(self, url):
+        self.url = url
+        self.last_time = None
+        self.last_data = None
+
+    def get(self):
+        current_time = time.monotonic()
+        if self.last_time is None or current_time > self.last_time + 5 * 60:
+            self.last_data = fetch_json(url)
+            self.last_time = current_time
+        return self.last_data
 
 
 # We get 1,000 calls a day for free, but calling once a minute would be 1,440
@@ -807,6 +822,12 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
             print(traceback.format_exc(), flush=True)
             # self.wfile.write(traceback.format_exc()) Convert to binary?
             self.wfile.write(b"</body></html>")
+
+
+fetch_json(
+    "https://api.tomorrow.io/v4/weather/forecast?location=42.430560,-71.194972&apikey=tKN34V6j2cfrtFWdYB8D8cK4n4W50xJf&fields=precipitationProbability,temperature&units=imperial"
+)
+sys.exit(0)
 
 
 def run_http_server():
