@@ -33,6 +33,12 @@ import traceback
 
 # Ah, weather APIs.
 #
+# OpenWeatherMap only has hourly for 2 days.  It has every 3 hours for 5 days,
+# but that looks like shit.  tomorrow.io has hourly for 5 days!  But it doesn't
+# seem very accurate.  It's saying 80% chance of precip 2.5 days before a big
+# Nor'easter that the news has been talking about, and everyone else says 100%.
+# Visual Crossing is the only other one worth trying.
+#
 # weather.gov goes down (DNS entry not found of all things) or times out fairly
 # often, so it would be great to move away.  It went down for a week and a half
 # straight over winter holidays 2023.  However, the OpenWeatherMaps API only has
@@ -51,6 +57,11 @@ import traceback
 # tomorrow.io:
 # Minutely is for an hour.
 # Hourly is for 5 days.
+
+# Both OpenWeatherMap and weather.gov provide this, but tomorrow.io doesn't seem
+# to.  Could make a separate call to another service, see
+# https://stackoverflow.com/questions/16086962
+TIMEZONE = "America/New_York"
 
 # A probability of precipitation greather than this will show the raining
 # clothing icon.
@@ -96,13 +107,18 @@ signal.signal(signal.SIGUSR1, print_stack)
 os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
 
 
-OPENWEATHERMAP_APPID = os.getenv("OPENWEATHERMAP_APPID")
-if not OPENWEATHERMAP_APPID:
+def parse_datetime(string):
+    return datetime.datetime.fromisoformat(string.replace("Z", "+00:00"))
+
+
+TOMORROW_IO_API_KEY = os.getenv("TOMORROW_IO_API_KEY")
+if not TOMORROW_IO_API_KEY:
     print(
-        "Please supply OpenWeatherMap app ID in the environment variable OPENWEATHERMAP_APPID",
+        "Please supply tomorrow.io API key in the environment variable TOMORROW_IO_API_KEY",
         file=sys.stderr,
     )
     sys.exit(1)
+
 
 parser = argparse.ArgumentParser(
     prog="weather",
@@ -185,7 +201,7 @@ def rtl_433_loop(local_weather: LocalWeather):
             and parsed["channel"] == RTL_433_CHANNEL
         ):
             local_weather.set(
-                datetime.datetime.fromisoformat(parsed["time"]),
+                parse_datetime(parsed["time"]),
                 parsed["temperature_C"] * 1.8 + 32,
                 parsed["humidity"],
                 parsed["battery_ok"] == 1,
@@ -212,11 +228,26 @@ class Period:
 
 
 class Forecast:
-    def __init__(self, timezone, isDaytime, periods, daily):
+    def __init__(
+        self,
+        timezone,
+        isDaytime,
+        periods,
+        long_range_forecast,
+        precipitation,
+        wind_speed,
+        clouds,
+        is_raining,
+    ):
+        assert len(periods) == 24
         self.timezone = timezone
         self.isDaytime = isDaytime
         self.periods = periods
-        self.daily = daily
+        self.long_range_forecast = long_range_forecast
+        self.precipitation = precipitation
+        self.wind_speed = wind_speed
+        self.clouds = clouds
+        self.is_raining = is_raining
 
 
 def load_icon(fname, box):
@@ -337,96 +368,84 @@ def fetch_json(url):
     # Send an HTTP GET request to the URL
     with urllib.request.urlopen(url, timeout=15) as response:
         if response.status == 200:
-            print(response.getheaders())
             # Read the response data and decode it as JSON
             return json.loads(response.read().decode("utf-8"))
         else:
             raise Exception(f"request failed with status {response.status}", flush=True)
 
 
-def get_long_range_forecast(timezone, latitude, longitude):
-    # See https://openweathermap.org/forecast5 for explanation.
-    # I think the 3 hour granularity for 5 days looks awful.
-    url = f"https://api.openweathermap.org/data/2.5/forecast?lat={latitude}&lon={longitude}&appid={OPENWEATHERMAP_APPID}&units=imperial"
-    result = fetch_json(url)
-    # print(json.dumps(result, indent=2))
-    periods = []
-    for period in result["list"]:
-        start = datetime.datetime.fromtimestamp(period["dt"], timezone)
-        end = start + datetime.timedelta(hours=3)
-        periods.append(Period(start, end, period["main"]["temp"], period["pop"]))
-    return periods
+class QueryWithCaching:
+    def __init__(self, url, cache_time_in_sec):
+        self.url = url
+        self.cache_time_in_sec = cache_time_in_sec
+        self.last_time = None
+        self.last_data = None
+
+    def get(self):
+        current_time = time.monotonic()
+        if (
+            self.last_time is None
+            or current_time > self.last_time + self.cache_time_in_sec
+        ):
+            self.last_data = fetch_json(self.url)
+            self.last_time = current_time
+        return self.last_data
+
+
+tomorrow = QueryWithCaching(
+    f"https://api.tomorrow.io/v4/weather/forecast?location={LATITUDE},{LONGITUDE}&apikey={TOMORROW_IO_API_KEY}&fields=precipitationProbability,temperature,sunriseTime,sunsetTime,weatherCodeDay,weatherCodeNight&units=imperial",
+    5 * 60,
+)
 
 
 def get_forecast(latitude, longitude):
-    owm_data = owm.get()
+    # the "fields" thing doesn't seem to actually do anything.
+    result = tomorrow.get()
 
-    timezone = ZoneInfo(owm_data["timezone"])
+    # tomorrow.io doesn't give you the timezone.
+    timezone = ZoneInfo(TIMEZONE)
+    timelines = result["timelines"]
+    today = timelines["daily"][0]["values"]
+    sunrise = parse_datetime(today["sunriseTime"])
+    sunset = parse_datetime(today["sunsetTime"])
 
-    current = owm_data["current"]
-    isDaytime = current["sunrise"] <= current["dt"] <= current["sunset"]
+    isDaytime = sunrise <= datetime.datetime.now(datetime.timezone.utc) <= sunset
 
     periods = []
-    for period in owm_data["hourly"]:
-        start = datetime.datetime.fromtimestamp(period["dt"], timezone)
+    for period in timelines["hourly"]:
+        start = parse_datetime(period["time"]).astimezone(timezone)
         end = start + datetime.timedelta(hours=1)
-        periods.append(Period(start, end, period["temp"], period["pop"]))
+        periods.append(
+            Period(
+                start,
+                end,
+                period["values"]["temperature"],
+                period["values"]["precipitationProbability"] / 100.0,
+            )
+        )
 
-    return Forecast(timezone, isDaytime, periods, owm_data["daily"])
+    now = timelines["minutely"][0]["values"]
+    print(
+        f'{now["precipitationProbability"]=}, {now["freezingRainIntensity"]=}, {now["rainIntensity"]=}, {now["sleetIntensity"]=},  {now["snowIntensity"]=}'
+    )
 
+    assert "weatherCodeDay" not in today
+    assert "weatherCodeNight" not in today
+    assert today["weatherCodeMin"] == today["weatherCodeMax"]
 
-class QueryWithCaching:
-    def __init__(self, url):
-        self.url = url
-        self.last_time = None
-        self.last_data = None
-
-    def get(self):
-        current_time = time.monotonic()
-        if self.last_time is None or current_time > self.last_time + 5 * 60:
-            self.last_data = fetch_json(url)
-            self.last_time = current_time
-        return self.last_data
-
-
-# We get 1,000 calls a day for free, but calling once a minute would be 1,440
-# calls.  So, we cache.  OWM is updated every 10 minutes, so we query once every
-# 5 minutes, so that our display is at most 5 minutes stale.  That's 288 calls
-# per day.
-class OpenWeatherMap:
-    def __init__(self, latitude, longitude, appid):
-        self.latitude = latitude
-        self.longitude = longitude
-        self.appid = appid
-        self.last_time = None
-        self.last_data = None
-
-    def get(self):
-        current_time = time.monotonic()
-        if self.last_time is None or current_time > self.last_time + 5 * 60:
-            url = f"https://api.openweathermap.org/data/3.0/onecall?lat={self.latitude}&lon={self.longitude}&exclude=minutely&units=imperial&appid={self.appid}"
-            # Minutely only gives precipitation in mm/hr.  No temperature.
-            # Hourly is for 48 hours.
-            self.last_data = fetch_json(url)
-            self.last_time = current_time
-        return self.last_data
-
-
-owm = OpenWeatherMap(LATITUDE, LONGITUDE, OPENWEATHERMAP_APPID)
-
-
-# Returns a 2-element tuple.  First is a bool, whether or not it's currently
-# raining.  Second is current temperature.
-def get_current(latitude, longitude):
-    # See https://openweathermap.org/current for explanation.
-    url = f"https://api.openweathermap.org/data/2.5/weather?lat={latitude}&lon={longitude}&appid={OPENWEATHERMAP_APPID}&units=imperial"
-
-    result = fetch_json(url)
-
-    # See https://openweathermap.org/weather-conditions
-    weather_id = result["weather"][0]["id"]
-
-    return (weather_id < 600, result["main"]["temp"])
+    return Forecast(
+        timezone,
+        isDaytime,
+        periods[:24],
+        periods,
+        precipitation_from_weather(today["weatherCodeMin"]),
+        today["windSpeedAvg"],
+        today["cloudCoverAvg"],
+        now["freezingRainIntensity"] > 0
+        or now["rainIntensity"] > 0
+        or now["sleetIntensity"] > 0
+        or now["snowIntensity"] > 0,
+    )
 
 
 def round_up_to_next_6_hours(input_datetime):
@@ -564,7 +583,7 @@ def plot_graph(periods, image, rect):
         xy = [(to_x(period.mid), temp_to_y(period.temp)) for period in periods]
         draw.line(xy, fill=0, width=1)
     else:
-        prev_y = None
+        # prev_y = None
         for period in periods:
             y = temp_to_y(period.temp)
             left = to_x(period.start)
@@ -589,51 +608,42 @@ def plot_graph(periods, image, rect):
                 fill=0,
                 width=3,
             )
-            if prev_y is not None:
-                draw.line(
-                    (left, y, left, prev_y),
-                    fill=0,
-                    width=1,
-                )
-            prev_y = y
+            # if prev_y is not None:
+            #     draw.line(
+            #         (left, y, left, prev_y),
+            #         fill=0,
+            #         width=1,
+            #     )
+            # prev_y = y
+
+
+def precipitation_from_weather(weather):
+    # For tomorrow.io, see
+    # https://docs.tomorrow.io/reference/data-layers-weather-codes
+    if weather >= 8000:
+        return Precipitation.THUNDERSTORMS
+    if weather >= 7000:
+        # Ice pellets
+        return Precipitation.SNOW
+    if weather >= 6000:
+        # Freezing rain
+        return Precipitation.RAINY
+    if weather >= 5000:
+        return Precipitation.SNOW
+    if weather >= 4000:
+        return Precipitation.RAINY
+    return Precipitation.NONE
 
 
 def draw_icon(forecast, image, left, top):
-    today = forecast.daily[0]
-    # I would like to include the description text somewhere, but it can be
-    # quite long, e.g. "thunderstorm with heavy drizzle", and I don't want to
-    # give up screen real estate anywhere for that.  Maybe across the top, right
-    # justified?
-    print(json.dumps(today["weather"][0]))
-    weather_id = today["weather"][0]["id"]
-
-    # First figure out precipitation.
-    # See https://openweathermap.org/weather-conditions#Weather-Condition-Codes-2
-    if weather_id >= 700:
-        precipitation = Precipitation.NONE
-    elif weather_id >= 600:
-        precipitation = Precipitation.SNOW
-    elif weather_id >= 500:
-        if weather_id == 500 or weather_id == 520:
-            precipitation = Precipitation.LIGHT_RAIN
-        elif weather_id == 511:
-            precipitation = Precipitation.SNOW
-        else:
-            precipitation = Precipitation.RAINY
-    elif weather_id >= 300:
-        precipitation = Precipitation.DRIZZLE
-    else:
-        precipitation = Precipitation.THUNDERSTORMS
-
     # I read somewhere that 20 mph is the threshold for "windy".
-    windy = today["wind_speed"] > 20
-    # print(f'wind_speed = {today["wind_speed"]}, clouds = {today["clouds"]}')
+    windy = forecast.wind_speed > 20
 
-    if today["clouds"] <= 25:
+    if forecast.clouds <= 25:
         cloudiness = Cloudiness.CLEAR
-    elif today["clouds"] <= 50:
+    elif forecast.clouds <= 50:
         cloudiness = Cloudiness.MOSTLY_CLEAR
-    elif today["clouds"] <= 75:
+    elif forecast.clouds <= 75:
         cloudiness = Cloudiness.MOSTLY_CLOUDY
     else:
         cloudiness = Cloudiness.CLOUDY
@@ -641,7 +651,7 @@ def draw_icon(forecast, image, left, top):
     fname = weather_icon_fname(
         DayNight.DAY if forecast.isDaytime else DayNight.NIGHT,
         cloudiness,
-        precipitation,
+        forecast.precipitation,
         windy,
     )
     icon = weather_icons[fname]
@@ -666,15 +676,10 @@ def get_image():
 
     try:
         forecast = get_forecast(LATITUDE, LONGITUDE)
-        long_range_forecast = get_long_range_forecast(
-            forecast.timezone, LATITUDE, LONGITUDE
-        )
 
     except Exception as e:
+        print(e, flush=True)
         forecast = e
-
-    current_raining, owm_temperature = get_current(LATITUDE, LONGITUDE)
-    print(f"OWM current temp: {owm_temperature}")
 
     ##### Get the current temperature.  Should probably be made into a function.
     print("About to grab local_weather.lock", flush=True)
@@ -695,7 +700,10 @@ def get_image():
     if current_temperature is not None:
         if temperature_elapsed < 5 * 60:
             text = str(round(current_temperature)) + "\N{DEGREE SIGN}"
-            current_icon = get_clothing(current_temperature, current_raining)
+            current_icon = get_clothing(
+                current_temperature,
+                isinstance(forecast, Exception) or forecast.is_raining,
+            )
         else:
             if temperature_elapsed < 100 * 60:
                 text = str(round(temperature_elapsed / 60)) + "m"
@@ -770,12 +778,10 @@ def get_image():
                 anchor="mm",
             )
     else:
-        periods = forecast.periods
-
         # Plot graph for next 24 hours.
-        plot_graph(periods[0:24], image, (20, 25, 543, 215))
+        plot_graph(forecast.periods, image, (20, 25, 543, 215))
         # Plot graph for the coming week.
-        plot_graph(long_range_forecast, image, (20, 270, 543, 460))
+        plot_graph(forecast.long_range_forecast, image, (20, 270, 543, 460))
 
     return image
 
@@ -822,12 +828,6 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
             print(traceback.format_exc(), flush=True)
             # self.wfile.write(traceback.format_exc()) Convert to binary?
             self.wfile.write(b"</body></html>")
-
-
-fetch_json(
-    "https://api.tomorrow.io/v4/weather/forecast?location=42.430560,-71.194972&apikey=tKN34V6j2cfrtFWdYB8D8cK4n4W50xJf&fields=precipitationProbability,temperature&units=imperial"
-)
-sys.exit(0)
 
 
 def run_http_server():
