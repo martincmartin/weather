@@ -61,7 +61,7 @@ import traceback
 # Both OpenWeatherMap and weather.gov provide this, but tomorrow.io doesn't seem
 # to.  Could make a separate call to another service, see
 # https://stackoverflow.com/questions/16086962
-TIMEZONE = "America/New_York"
+# TIMEZONE = "America/New_York"
 
 # A probability of precipitation greather than this will show the raining
 # clothing icon.
@@ -111,14 +111,19 @@ def parse_datetime(string):
     return datetime.datetime.fromisoformat(string.replace("Z", "+00:00"))
 
 
-TOMORROW_IO_API_KEY = os.getenv("TOMORROW_IO_API_KEY")
-if not TOMORROW_IO_API_KEY:
-    print(
-        "Please supply tomorrow.io API key in the environment variable TOMORROW_IO_API_KEY",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+def get_api_key(name):
+    value = os.getenv(name)
+    if not value:
+        print(
+            f"Please supply an API key in the environment variable {name}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return value
 
+
+# TOMORROW_IO_API_KEY = get_api_key("TOMORROW_IO_API_KEY")
+VISUAL_CROSSING_API_KEY = get_api_key("VISUAL_CROSSING_API_KEY")
 
 parser = argparse.ArgumentParser(
     prog="weather",
@@ -392,59 +397,117 @@ class QueryWithCaching:
         return self.last_data
 
 
-tomorrow = QueryWithCaching(
-    f"https://api.tomorrow.io/v4/weather/forecast?location={LATITUDE},{LONGITUDE}&apikey={TOMORROW_IO_API_KEY}&fields=precipitationProbability,temperature,sunriseTime,sunsetTime,weatherCodeDay,weatherCodeNight&units=imperial",
-    5 * 60,
+# tomorrow = QueryWithCaching(
+#     # the "fields" thing doesn't seem to actually do anything.
+#     f"https://api.tomorrow.io/v4/weather/forecast?location={LATITUDE},{LONGITUDE}&apikey={TOMORROW_IO_API_KEY}&fields=precipitationProbability,temperature,sunriseTime,sunsetTime,weatherCodeDay,weatherCodeNight&units=imperial",
+#     5 * 60,
+# )
+
+
+# def get_forecast(latitude, longitude):
+#     result = tomorrow.get()
+
+#     # tomorrow.io doesn't give you the timezone.
+#     timezone = ZoneInfo(TIMEZONE)
+#     timelines = result["timelines"]
+#     today = timelines["daily"][0]["values"]
+#     sunrise = parse_datetime(today["sunriseTime"])
+#     sunset = parse_datetime(today["sunsetTime"])
+
+#     isDaytime = sunrise <= datetime.datetime.now(datetime.timezone.utc) <= sunset
+
+#     periods = []
+#     for period in timelines["hourly"]:
+#         start = parse_datetime(period["time"]).astimezone(timezone)
+#         end = start + datetime.timedelta(hours=1)
+#         periods.append(
+#             Period(
+#                 start,
+#                 end,
+#                 period["values"]["temperature"],
+#                 period["values"]["precipitationProbability"] / 100.0,
+#             )
+#         )
+
+#     now = timelines["minutely"][0]["values"]
+#     print(
+#         f'{now["precipitationProbability"]=}, {now["freezingRainIntensity"]=}, {now["rainIntensity"]=}, {now["sleetIntensity"]=},  {now["snowIntensity"]=}'
+#     )
+
+#     assert "weatherCodeDay" not in today
+#     assert "weatherCodeNight" not in today
+#     assert today["weatherCodeMin"] == today["weatherCodeMax"]
+
+#     return Forecast(
+#         timezone,
+#         isDaytime,
+#         periods[:24],
+#         periods,
+#         precipitation_from_weather(today["weatherCodeMin"]),
+#         today["windSpeedAvg"],
+#         today["cloudCoverAvg"],
+#         now["freezingRainIntensity"] > 0
+#         or now["rainIntensity"] > 0
+#         or now["sleetIntensity"] > 0
+#         or now["snowIntensity"] > 0,
+#     )
+
+
+def icon_to_precipitation(icon):
+    # https://www.visualcrossing.com/resources/documentation/weather-api/defining-icon-set-in-the-weather-api/
+    if icon.startswith("snow"):
+        return Precipitation.SNOW
+    if icon.startswith("thunder"):
+        return Precipitation.THUNDERSTORMS
+    if icon.startswith("rain") or icon.startswith("showers"):
+        # TODO: distingoush drizzle vs light rain vs rainy.  Maybe use inches/hr
+        # of rain?
+        return Precipitation.RAINY
+    return Precipitation.NONE
+
+
+visual_crossing = QueryWithCaching(
+    f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{LATITUDE}%2C{LONGITUDE}?unitGroup=us&key={VISUAL_CROSSING_API_KEY}&contentType=json&iconSet=icons2",
+    2.5 * 60,
 )
 
 
 def get_forecast(latitude, longitude):
-    # the "fields" thing doesn't seem to actually do anything.
-    result = tomorrow.get()
+    # Visual Crossing documentation:
+    # https://www.visualcrossing.com/resources/documentation/weather-api/timeline-weather-api/
 
-    # tomorrow.io doesn't give you the timezone.
-    timezone = ZoneInfo(TIMEZONE)
-    timelines = result["timelines"]
-    today = timelines["daily"][0]["values"]
-    sunrise = parse_datetime(today["sunriseTime"])
-    sunset = parse_datetime(today["sunsetTime"])
+    result = visual_crossing.get()
 
-    isDaytime = sunrise <= datetime.datetime.now(datetime.timezone.utc) <= sunset
+    timezone = ZoneInfo(result["timezone"])
+
+    today = result["days"][0]
+    current = result["currentConditions"]
+
+    now = current["datetimeEpoch"]
+
+    isDayTime = current["sunriseEpoch"] <= now <= current["sunsetEpoch"]
 
     periods = []
-    for period in timelines["hourly"]:
-        start = parse_datetime(period["time"]).astimezone(timezone)
-        end = start + datetime.timedelta(hours=1)
-        periods.append(
-            Period(
-                start,
-                end,
-                period["values"]["temperature"],
-                period["values"]["precipitationProbability"] / 100.0,
-            )
-        )
+    for day in result["days"]:
+        for hour in day["hours"]:
+            start = datetime.datetime.fromtimestamp(hour["datetimeEpoch"], timezone)
+            end = start + datetime.timedelta(hours=1)
+            if hour["datetimeEpoch"] + 60 * 60 > now:
+                periods.append(
+                    Period(start, end, hour["temp"], hour["precipprob"] / 100.0)
+                )
 
-    now = timelines["minutely"][0]["values"]
-    print(
-        f'{now["precipitationProbability"]=}, {now["freezingRainIntensity"]=}, {now["rainIntensity"]=}, {now["sleetIntensity"]=},  {now["snowIntensity"]=}'
-    )
-
-    assert "weatherCodeDay" not in today
-    assert "weatherCodeNight" not in today
-    assert today["weatherCodeMin"] == today["weatherCodeMax"]
+    print(f'precip: {current["precip"]}, precipprob: {current["precipprob"]}')
 
     return Forecast(
         timezone,
-        isDaytime,
+        isDayTime,
         periods[:24],
-        periods,
-        precipitation_from_weather(today["weatherCodeMin"]),
-        today["windSpeedAvg"],
-        today["cloudCoverAvg"],
-        now["freezingRainIntensity"] > 0
-        or now["rainIntensity"] > 0
-        or now["sleetIntensity"] > 0
-        or now["snowIntensity"] > 0,
+        periods[: (7 * 24)],
+        icon_to_precipitation(today["icon"]),
+        today["windspeed"],
+        today["cloudcover"],
+        current["precip"] and current["precip"] > 0,
     )
 
 
@@ -617,6 +680,7 @@ def plot_graph(periods, image, rect):
             # prev_y = y
 
 
+# This is for tomorrow.io.
 def precipitation_from_weather(weather):
     # For tomorrow.io, see
     # https://docs.tomorrow.io/reference/data-layers-weather-codes
