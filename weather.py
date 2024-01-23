@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 import math
 import sys
 from zoneinfo import ZoneInfo
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from enum import Enum
 import os
 import shutil
@@ -158,13 +158,11 @@ class LocalWeather:
         self.battery_ok = True
 
     def set(self, time, temperature, humidity, battery_ok):
-        print("Entered LocalWeather.set()", flush=True)
         with self.lock:
             self.time = time
             self.temperature = temperature
             self.humidity = humidity
             self.battery_ok = battery_ok
-        print("Exiting LocalWeather.set()", flush=True)
 
 
 local_weather = LocalWeather()
@@ -370,8 +368,10 @@ weather_icons = load_weather_icons()
 
 
 def fetch_json(url):
+    start = time.monotonic()
     # Send an HTTP GET request to the URL
     with urllib.request.urlopen(url, timeout=15) as response:
+        print(f"Time to fetch url: {time.monotonic() - start} sec")
         if response.status == 200:
             # Read the response data and decode it as JSON
             return json.loads(response.read().decode("utf-8"))
@@ -746,14 +746,12 @@ def get_image():
         forecast = e
 
     ##### Get the current temperature.  Should probably be made into a function.
-    print("About to grab local_weather.lock", flush=True)
     with local_weather.lock:
         battery_ok = local_weather.battery_ok
         current_temperature = local_weather.temperature
         temperature_elapsed = (
             datetime.datetime.now() - local_weather.time
         ).total_seconds()
-    print("Released local_weather.lock", flush=True)
 
     if not have_rtl_433:
         current_temperature = (
@@ -858,6 +856,11 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
                 print(
                     "Someone wants to know whether the weather is wetter.", flush=True
                 )
+                for thread in threading.enumerate():
+                    print(f"{thread}, native_id={thread.native_id}")
+                print(
+                    f"Number of active threads in process: {threading.active_count()}"
+                )
                 image = get_image().convert("1")
                 self.send_response(200)
                 self.send_header("Content-type", "image/bmp")
@@ -897,7 +900,7 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
 def run_http_server():
     server_address = ("", 8998)
     print("Launching server.", flush=True)
-    httpd = HTTPServer(server_address, WeatherHTTPRequestHandler)
+    httpd = ThreadingHTTPServer(server_address, WeatherHTTPRequestHandler)
     print("Listening.", flush=True)
     httpd.serve_forever()
 
