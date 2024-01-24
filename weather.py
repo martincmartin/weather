@@ -371,10 +371,15 @@ def fetch_json(url):
     start = time.monotonic()
     # Send an HTTP GET request to the URL
     with urllib.request.urlopen(url, timeout=15) as response:
-        print(f"Time to fetch url: {time.monotonic() - start} sec")
+        fetch_end = time.monotonic()
         if response.status == 200:
             # Read the response data and decode it as JSON
-            return json.loads(response.read().decode("utf-8"))
+            result = json.loads(response.read().decode("utf-8"))
+            parse_end = time.monotonic()
+            print(
+                f"Time to fetch & parse: {fetch_end - start} + {parse_end - fetch_end} = {parse_end - start} sec."
+            )
+            return result
         else:
             raise Exception(f"request failed with status {response.status}", flush=True)
 
@@ -392,7 +397,16 @@ class QueryWithCaching:
             self.last_time is None
             or current_time > self.last_time + self.cache_time_in_sec
         ):
+            start = time.monotonic()
+            # There's evidence that we're running out of memory on the Raspberry
+            # Pi 3.  Free all this data before creating the new one.
+            self.last_data = None
+            print(f"About to fetch at {start - request_start}")
             self.last_data = fetch_json(self.url)
+            end_time = time.monotonic()
+            print(
+                f"Got json, took {end_time - start}, request elapsed {end_time - request_start}"
+            )
             self.last_time = current_time
         return self.last_data
 
@@ -850,7 +864,8 @@ def get_image():
 
 class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        start = time.monotonic()
+        global request_start
+        request_start = time.monotonic()
         try:
             if self.path == "/weather.bmp":
                 print(
@@ -862,16 +877,19 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
                     f"Number of active threads in process: {threading.active_count()}"
                 )
                 image = get_image().convert("1")
+                print(f"Got image after {time.monotonic() - request_start} sec")
                 self.send_response(200)
                 self.send_header("Content-type", "image/bmp")
                 self.end_headers()
                 # image = Image.open("/tmp/bad.bmp")
                 # image.save(self.wfile, format="BMP")
 
+                print(f"Headers sent at {time.monotonic() - request_start} sec.")
+
                 image.save(self.wfile, format="BMP")
 
                 print(
-                    f"Done sending image response in {time.monotonic() - start} sec.",
+                    f"Done sending image response in {time.monotonic() - request_start} sec.",
                     flush=True,
                 )
                 if False:
