@@ -50,26 +50,13 @@ My weather app doesn't run on the display itself.  Instead, I run it on a web
 server on an old Raspberry Pi 3 in my home, and a Google Cloud instance queries
 it once a minute, then forwards the image to the display.
 
-## OpenWeatherMap API
+## Visual Crossing API
 
-I use and recommend OpenWeatherMap's API for this project.  Actually, the graph
-data comes from weather.gov since I originally decided on that API.  But if I
-were starting over, I'd just use OpenWeatherMap for everything.  See the
-Epilogue (below) for details.
+After trying weather.gov, OpenWeatherMap, and tommorow.io, I've settled on [Visual Crossing,](https://www.visualcrossing.com/weather-api) and I'm quite happy with it.  See the Epilogue (below) for details.
 
-You can make 1,000 calls a day to their new v. 3.0 "One Call" API.  Since there are 1,440
-minutes in a day, I implemented some simple caching: if it's been less than 5
-minutes since last querying, return the previous result.  However, you can call the "Current
-Weather" API as often as you want for free, so I call that on every refresh, about once a minute.
-
-Sign up here to get an API key; it's free. <https://openweathermap.org/api>
-
-You then have to subscribe for the "One Call" API, including giving a credit card.  However, you can put a hard limit of 1,000 calls on your account to ensure you are never charged:
-
-   - Go to <https://home.openweathermap.org/subscriptions/billing_info/onecall_30/base?key=base&service=onecall_30>
-   - Follow the instructions to complete the subscription.
-   - Go to <https://home.openweathermap.org/subscriptions> and set the "Calls per day (no more than)" to 1,000. This ensures you will never overrun the free calls.
-
+You can make 1,000 calls a day to their API. Since there are 1,440
+minutes in a day, I implemented some simple caching: if it's been less than 2.5
+minutes since last querying, return the previous result.
 
 ## Intercepting a Temperature Sensor: a 433 MHz detour
 
@@ -146,7 +133,7 @@ My son was nice enough to add the rain and umbrella.
 The weather icons are from <https://uifresh.net/product/weather-icons/>.
 
 
-## Epilogue: weather.gov vs OpenWeatherMap
+## Epilogue: weather.gov vs OpenWeatherMap vs tomorrow.io vs Visual Crossing.
 
 For weather API, I originally started with weather.gov.  The last time I looked
 into this stuff, in the 1990s, weather forcasting used some of the biggest
@@ -177,7 +164,10 @@ dig it out.  It does provide a way to get a short and long description of the
 weather, but both appear to be human generated and aren't easy to map to an
 icon.
 
-So I used OpenWeatherMap's API for the weather and clothing icons.  I didn't go
-back and convert the old code, so it still uses a mix of the two.  If I were
-starting the project from scratch, I would use the OpenWeatherMap API for
-everything.
+The biggest problem, however, was how unreliable weather.gov is.  It goes down (with DNS entry not found, of all things) or times out fairly often.  But what finally convined me to change was it was completely down for a week and a half at the end of December 2023.
+
+So I used OpenWeatherMap's API for the weather and clothing icons.  However, it only gives the forecast every 3 hours after the first two days, and the weekly graph looked too chunky that way.  There's often a steep increase in temperature in the morning or decrease a night, and that was completely obscured with the 3 hour resoultion.  If that doesn't affect your use case, OpenWeatherMap still seems like a good option.
+
+tomorrow.io seemed inaccurate.  Two days before a big Nor'easter (snow storm), that was all over the news as a sure thing, it only gave an 80% chance of precipitation, whereas other weather outlets were all saying 100% chance.  Also, their slack channel, which they say to use for support, was dead, and what they returned in their results didn't match the documentation.
+
+So I moved to visual crossing.  Works well, and I've been happy every since!
