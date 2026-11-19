@@ -55,8 +55,8 @@ it once a minute, then forwards the image to the display.
 After trying weather.gov, OpenWeatherMap, and tommorow.io, I've settled on [Visual Crossing,](https://www.visualcrossing.com/weather-api) and I'm quite happy with it.  See the Epilogue (below) for details.
 
 You can make 1,000 calls a day to their API. Since there are 1,440
-minutes in a day, I implemented some simple caching: if it's been less than 2.5
-minutes since last querying, return the previous result.
+minutes in a day, I implemented some simple caching: if it's been less than 3.5
+minutes since last querying a location, return the previous result.
 
 ## Intercepting a Temperature Sensor: a 433 MHz detour
 
@@ -130,7 +130,45 @@ My son was nice enough to add the rain and umbrella.
     <img src="clothing-icons/boy-cool-rain.png" width="24%"/>
 </p>
 
-The weather icons are from <https://uifresh.net/product/weather-icons/>.
+The weather icons are from <https://uifresh.net/product/weather-icons/>. The
+moon images are renders by NASA's Scientific Visualization Studio (see
+[`moon-phase/README.md`](moon-phase/README.md)). The font is DejaVu Sans; its
+licence is next to it.
+
+## Running it
+
+`weather.py` is a web server on port 8998. Each page is an 800 x 480 image:
+
+- `/weather.bmp`: the weather at home, as in the photos above. If `rtl_433` is
+  installed, the current temperature comes from the outdoor sensor.
+- `/stargazing.bmp`: the cloud cover for each night of the next week, with the
+  phase of the moon at midnight.
+- `/KEY.bmp`: the weather at another location, with its name at the top, for
+  example where you travel. Each extra location in the config has one.
+- `/pics.bmp`: a redirect to a random black and white photo from Unsplash.
+
+### Configuration
+
+Your API keys and locations go in `config.toml`, next to `weather.py`. Git
+ignores this file, so they stay out of the repository. To make it, copy
+[`config.example.toml`](config.example.toml) and fill it in:
+
+- `[visual_crossing]`: `api_key`, for the weather (see Visual Crossing API,
+  above).
+- `[unsplash]`: `access_key`, and the `query` that `/pics.bmp` searches for.
+  Leave it out to turn off `/pics.bmp`.
+- `[locations.home]`: the location of `/weather.bmp`. This one is required.
+- `[locations.stargazing]`: the location of `/stargazing.bmp`.
+- Any other `[locations.KEY]`: the page `/KEY.bmp`. KEY is lower case letters,
+  digits and hyphens, so `[locations.paris]` is `/paris.bmp`.
+
+Each location has a `name`, a `latitude` and a `longitude`. Leave out a
+location to turn off its page. To use a file in another place, run
+`python3 weather.py --config PATH`.
+
+`weather.py` needs Python 3.11 or later and Pillow. The steps to run it on a
+Raspberry Pi, as a systemd service, are in
+[`build-and-install.txt`](build-and-install.txt).
 
 
 ## Epilogue: weather.gov vs OpenWeatherMap vs tomorrow.io vs Visual Crossing.

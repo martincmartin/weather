@@ -1,0 +1,40 @@
+# The private settings for weather.py. Copy this file to config.toml, next to
+# weather.py, and fill it in. Git ignores config.toml, so your API keys and
+# locations stay out of the repository.
+
+[visual_crossing]
+# Free key: https://www.visualcrossing.com/weather-api
+api_key = "[your Visual Crossing API key]"
+
+# Leave out this table to turn off /pics.bmp.
+[unsplash]
+# Free key: https://unsplash.com/developers
+access_key = "[your Unsplash access key]"
+# The search for the random photo at /pics.bmp.
+query = "watch mechanism"
+
+# /weather.bmp. The only location that is required.
+[locations.home]
+name = "Home"
+latitude = 40.7128
+longitude = -74.0060
+
+# Each other location is a page named after its key, with its name at the top:
+# this one is /paris.bmp. The key is lower case letters, digits and hyphens.
+[locations.paris]
+name = "Paris"
+latitude = 48.8566
+longitude = 2.3522
+
+# /tokyo.bmp
+[locations.tokyo]
+name = "Tokyo"
+latitude = 35.6762
+longitude = 139.6503
+
+# /stargazing.bmp: cloud cover and moon phase for the nights of the next week.
+# Leave it out to turn the page off.
+[locations.stargazing]
+name = "Dark Sky Park"
+latitude = 41.6620
+longitude = -77.8236

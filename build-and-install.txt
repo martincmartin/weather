@@ -1,0 +1,87 @@
+These are for a Raspbery Pi running Raspberry Pi OS.
+
+weather.py needs Python 3.11 or later, for tomllib. Raspberry Pi OS 12
+(Bookworm) and later have it: check with python3 --version.
+
+sudo apt-get update && sudo apt-get full-upgrade -y
+
+# Copy config.example.toml to config.toml, and fill in your API keys and
+# locations. Then copy over the scripts, the settings, the fonts and the icons:
+
+scp -r weather.py moon.py config.toml DejaVuSans.ttf clothing-icons weather-icons moon-phase raspberrypi:/home/[user]/weather
+
+**********  systemd service
+
+Create a file /etc/systemd/system/weather.service containing:
+
+[Unit]
+Description=E-Paper Weather Display for Invisible Computers
+
+[Service]
+Type=exec
+Restart=always
+User=[your username]
+ExecStart=/usr/bin/python3 /home/[user]/weather/weather.py
+
+[Install]
+WantedBy=multi-user.target
+
+
+Then run:
+
+sudo systemctl daemon-reload
+sudo systemctl enable weather.service
+sudo systemctl start weather.service
+sudo systemctl status weather.service
+journalctl -u weather.service --lines 100 -f
+
+
+
+**********  To install RTL-SDR drivers:
+
+# From rtl-sdr.com quick start guide, section "Getting started on Linux"
+# https://rtl-sdr.com/QSG
+
+sudo apt purge ^librtlsdr # Removing: 0
+sudo rm -rvf /usr/lib/librtlsdr* 
+sudo rm -rvf /usr/include/rtl-sdr* 
+sudo rm -rvf /usr/local/lib/librtlsdr* 
+sudo rm -rvf /usr/local/include/rtl-sdr* 
+sudo rm -rvf /usr/local/include/rtl_* 
+sudo rm -rvf /usr/local/bin/rtl_*
+
+sudo apt update
+sudo apt-get install -y libusb-1.0-0-dev git cmake pkg-config build-essential
+
+cd
+# On April 8, 2026, rtl-sdr gave a compile error:
+# "rtl-sdr/src/tuner_r82xx.c:1322:10: error: implicit declaration of function ‘r820t_calibrate’"
+# So used rtl-srd-blog instead.
+git clone https://github.com/rtlsdrblog/rtl-sdr-blog
+cd rtl-sdr-blog
+mkdir build
+cd build
+cmake ../ -DINSTALL_UDEV_RULES=ON
+time make # Took 7 seconds on Raspberry Pi 5, and 20 seconds on Raspberry Pi 4.
+sudo make install
+sudo cp ../rtl-sdr.rules /etc/udev/rules.d/
+sudo ldconfig
+echo 'blacklist dvb_usb_rtl28xxu' | sudo tee --append /etc/modprobe.d/blacklist-dvb_usb_rtl28xxu.conf
+sudo rmmod dvb_usb_rtl28xxu # Might fail that it's in use
+sudo reboot
+sudo rmmod dvb_usb_rtl28xxu # Might fail that it is not currently loaded
+rtl_test # RTL-SDR device needs to be plugged in to the Pi's USB. To test the installation. It should run, print some output ending in "Reading samples in async mode...", then keep running without printing anything else.
+
+**********  To install rtl_433 executable:
+# Fails on a 1 GB RPi 4 with Debian 13 Trixie, seems to run out of memory.
+cd
+git clone https://github.com/merbanan/rtl_433.git
+cd rtl_433/
+mkdir build
+cd build
+cmake ..
+# The 'make' below fails building mongoose.c.o , presumably out of RAM on my 1GB RPi 4B.  RAM usage of cc1 maxes out around 70%.  Grr.  I'm tempted to get an Orange Pi.
+time make # Took 2 min 34 sec on Raspberry Pi 3B, 1 min 51 sec on Raspberry Pi 4B, & 1 min 36 sec on Raspberry Pi 5
+sudo make install
+rtl_433 # To test.  Should print 2 messages from temperature sensor every 50 sec.
+

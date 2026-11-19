@@ -1,2 +1,6 @@
 *~
 .DS_Store
+__pycache__/
+# Private settings: API keys and locations. See config.example.toml.
+config.toml
+weather.service.martin-specific-dont-upload-to-github
