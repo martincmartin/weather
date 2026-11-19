@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 NUMBER_WORDS = (
     "",
@@ -212,8 +212,8 @@ class Settings:
     max_width_fill: float = 0.85
     max_height_fill: float = 0.70
     outline_width: int = 3
-    # The part of the pixels of an unlit letter (or its outline) that are
-    # black, by an ordered dither: 0 is white, 1 is black. The steps are 1/16.
+    # The darkness of an unlit letter (or its outline): 0 is white, 1 is
+    # black. The dither makes about this part of its pixels black.
     grey_level: float = 0.33
 
     def __post_init__(self) -> None:
@@ -282,10 +282,13 @@ def render(
     layout = settings.layout
     lit = layout.lit_cells(phrase_for(time.hour, time.minute))
     font = fitted_font(settings)
-    size = (settings.width, settings.height)
-    # Draw in grey levels (white 255, ink 0), then make it 1-bit at the end.
-    lit_layer = Image.new("L", size, 255)
-    unlit_layer = Image.new("L", size, 255)
+    # Draw in antialiased grey levels (white 255, black 0), then make the image
+    # 1-bit with Floyd–Steinberg dithering. An ordered (Bayer) dither of the
+    # unlit letters, with the text thresholded, looked the same at a viewing
+    # distance and needed more code.
+    image = Image.new("L", (settings.width, settings.height), 255)
+    draw = ImageDraw.Draw(image)
+    unlit_ink = round(255 * (1 - settings.grey_level))
     cell_width = settings.width / layout.column_count
     cell_height = settings.height / layout.row_count
     baseline_offset = _cap_height(font) / 2
@@ -295,59 +298,21 @@ def render(
             left, _, right, _ = _ink_box(font, letter)
             x = (column + 0.5) * cell_width - (left + right) / 2
             y = (row + 0.5) * cell_height + baseline_offset
-            is_lit = (row, column) in lit
-            layer = lit_layer if is_lit else unlit_layer
-            _draw_text(layer, (x, y), letter, font, settings, is_lit)
-    # Keep the unlit ink only where the dither pattern is black.
-    unlit_layer = ImageChops.lighter(
-        unlit_layer.point(_threshold), _dither_pattern(settings)
-    )
-    image = ImageChops.darker(lit_layer, unlit_layer)
-    return image.point(_threshold).convert("1")
-
-
-# An ordered dither: a pixel is black if its value is less than the number of
-# black pixels in each 4 x 4 tile. At 8 of 16, this gives a checkerboard.
-BAYER_4X4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
-
-
-def _dither_pattern(settings: Settings) -> Image.Image:
-    """A black (0) and white (255) image, black in grey_level of its pixels."""
-    black_per_tile = round(settings.grey_level * 16)
-    tile_rows = [
-        bytes(0 if row[x % 4] < black_per_tile else 255 for x in range(settings.width))
-        for row in BAYER_4X4
-    ]
-    rows = [tile_rows[y % 4] for y in range(settings.height)]
-    return Image.frombytes("L", (settings.width, settings.height), b"".join(rows))
-
-
-def _threshold(value: int) -> int:
-    return 255 if value >= 128 else 0
-
-
-def _draw_text(
-    layer: Image.Image,
-    position: tuple[float, float],
-    text: str,
-    font: ImageFont.FreeTypeFont,
-    settings: Settings,
-    is_lit: bool,
-) -> None:
-    draw = ImageDraw.Draw(layer)
-    if is_lit or not settings.unlit_outline:
-        draw.text(position, text, fill=0, font=font, anchor="ls")
-    else:
-        draw.text(
-            position,
-            text,
-            fill=0,
-            font=font,
-            anchor="ls",
-            stroke_width=settings.outline_width,
-            stroke_fill=0,
-        )
-        draw.text(position, text, fill=255, font=font, anchor="ls")
+            if (row, column) in lit:
+                draw.text((x, y), letter, fill=0, font=font, anchor="ls")
+            elif settings.unlit_outline:
+                draw.text(
+                    (x, y),
+                    letter,
+                    fill=255,
+                    font=font,
+                    anchor="ls",
+                    stroke_width=settings.outline_width,
+                    stroke_fill=unlit_ink,
+                )
+            else:
+                draw.text((x, y), letter, fill=unlit_ink, font=font, anchor="ls")
+    return image.convert("1", dither=Image.Dither.FLOYDSTEINBERG)
 
 
 def main() -> None:

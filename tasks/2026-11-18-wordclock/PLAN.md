@@ -175,3 +175,8 @@ cap height goes down to 28 px (70% of a 40 px row).
     letters and 23 pairs out of order.
 - 2026-11-19: 15 minutes is now "A QUARTER", and `LAYOUT_20X9` has a word A
   and 1 shared letter. See `../2026-11-19-wordclock-a-quarter/PLAN.md`.
+- 2026-11-19: The image is now drawn in antialiased grey (unlit letters at
+  `grey_level`) and made 1-bit by Floyd–Steinberg, not thresholded text with
+  a 4 × 4 Bayer dither of the unlit letters. On the display, half of each,
+  the user could not tell them apart at a viewing distance, and close up each
+  looked odd in its own way. Floyd–Steinberg needs less code.
