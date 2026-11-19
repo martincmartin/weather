@@ -13,6 +13,14 @@ access_key = "[your Unsplash access key]"
 # The search for the random photo at /pics.bmp.
 query = "watch mechanism"
 
+# Leave out this table for a landscape display.
+[display]
+# "landscape" or "portrait". For a search that finds mostly portrait photos
+# (people, for example), turn the display 90 degrees and set "portrait". Then
+# /pics.bmp is a portrait photo, and the other pages show a note, since they
+# are drawn for landscape only.
+orientation = "landscape"
+
 # /weather.bmp. The only location that is required.
 [locations.home]
 name = "Home"

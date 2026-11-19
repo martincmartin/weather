@@ -1,0 +1,6 @@
+# The default rules, with one exception.
+
+# tasks/ holds frozen copies of code and tools, kept as evidence for past
+# decisions and never updated (see the task READMEs), so they are not linted
+# or formatted.
+extend-exclude = ["tasks"]

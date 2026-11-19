@@ -137,7 +137,8 @@ Atkinson Hyperlegible Mono; each has its licence next to it.
 
 ## Running it
 
-`weather.py` is a web server on port 8998. Each page is an 800 x 480 image:
+`weather.py` is a web server on port 8998. Each page is an 800 x 480 1-bit
+image, as the display shows it:
 
 - `/weather.bmp`: the weather at home, as in the photos above. If `rtl_433` is
   installed, the current temperature comes from the outdoor sensor.
@@ -147,6 +148,7 @@ Atkinson Hyperlegible Mono; each has its licence next to it.
   example where you travel. Each extra location in the config has one.
 - `/wordclock.bmp`: a word clock (see below).
 - `/pics.bmp`: a redirect to a random black and white photo from Unsplash.
+  On a display turned to portrait, the photo itself, turned to fit.
 
 ### Configuration
 
@@ -158,6 +160,9 @@ ignores this file, so they stay out of the repository. To make it, copy
   above).
 - `[unsplash]`: `access_key`, and the `query` that `/pics.bmp` searches for.
   Leave it out to turn off `/pics.bmp`.
+- `[display]`: `orientation`, `"landscape"` (the default) or `"portrait"`.
+  Only `/pics.bmp` has a portrait layout; in portrait, the other pages show a
+  note.
 - `[locations.home]`: the location of `/weather.bmp`. This one is required.
 - `[locations.stargazing]`: the location of `/stargazing.bmp`.
 - Any other `[locations.KEY]`: the page `/KEY.bmp`. KEY is lower case letters,
@@ -170,6 +175,14 @@ location to turn off its page. To use a file in another place, run
 `weather.py` needs Python 3.11 or later and Pillow. The steps to run it on a
 Raspberry Pi, as a systemd service, are in
 [`build-and-install.txt`](build-and-install.txt).
+
+### Changing the code
+
+Before you commit, run `./validate`. It checks the formatting and the lint
+with ruff, and the types with mypy and pyright. It needs
+[uv](https://docs.astral.sh/uv/), which gets the tools when they are needed.
+The script gives their versions, and [`ruff.toml`](ruff.toml) gives the lint
+settings.
 
 
 ## Epilogue: weather.gov vs OpenWeatherMap vs tomorrow.io vs Visual Crossing.

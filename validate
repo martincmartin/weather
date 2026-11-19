@@ -1,0 +1,27 @@
+#!/bin/sh
+# Check the formatting, the lint and the types. Run it before each commit:
+#
+#     ./validate
+#
+# It stops at the first check that fails, with a non-zero exit code. uv runs
+# pinned versions of the tools, so nothing is installed into the project, and
+# each run checks with the same rules. The types are checked for Python 3.11,
+# the oldest version that README.md gives (for tomllib).
+
+set -eu
+cd "$(dirname "$0")"
+
+RUFF="uvx ruff@0.17.5"
+TYPES="uv run --quiet --no-project --python 3.13 --with pillow==13.0.0"
+# Unquoted below, so that the shell splits it into one argument for each file.
+PYTHON_FILES="weather.py wordclock.py moon.py moon-phase/make_moon_phases.py"
+
+echo "ruff format"
+$RUFF format --check .
+echo "ruff check"
+$RUFF check .
+echo "mypy"
+MYPYPATH=. $TYPES --with mypy==2.4.1 mypy --strict --python-version 3.11 $PYTHON_FILES
+echo "pyright"
+$TYPES --with pyright==1.1.414 pyright --warnings --pythonversion 3.11 $PYTHON_FILES
+echo "All checks passed."

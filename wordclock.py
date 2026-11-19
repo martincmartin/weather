@@ -260,7 +260,7 @@ def _ink_box(font: ImageFont.FreeTypeFont, text: str) -> tuple[int, int, int, in
     mask, (offset_x, offset_y) = font.getmask2(text, anchor="ls")
     box = mask.getbbox()
     if box is None:
-        raise ValueError(f"{text!r} has no ink in {font.path}")
+        raise ValueError(f"{text!r} has no ink in {font.path!r}")
     left, top, right, bottom = box
     return (offset_x + left, offset_y + top, offset_x + right, offset_y + bottom)
 

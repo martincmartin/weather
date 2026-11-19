@@ -36,7 +36,8 @@ MASK_OVERSAMPLE = 4  # for a smooth edge on the alpha mask
 
 def fetch(url: str) -> bytes:
     with urllib.request.urlopen(url, timeout=60) as response:
-        return response.read()
+        body: bytes = response.read()
+        return body
 
 
 def time_of_phase(target: float) -> datetime.datetime:
