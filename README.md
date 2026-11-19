@@ -132,8 +132,8 @@ My son was nice enough to add the rain and umbrella.
 
 The weather icons are from <https://uifresh.net/product/weather-icons/>. The
 moon images are renders by NASA's Scientific Visualization Studio (see
-[`moon-phase/README.md`](moon-phase/README.md)). The font is DejaVu Sans; its
-licence is next to it.
+[`moon-phase/README.md`](moon-phase/README.md)). The fonts are DejaVu Sans and
+Atkinson Hyperlegible Mono; each has its licence next to it.
 
 ## Running it
 
@@ -145,6 +145,7 @@ licence is next to it.
   phase of the moon at midnight.
 - `/KEY.bmp`: the weather at another location, with its name at the top, for
   example where you travel. Each extra location in the config has one.
+- `/wordclock.bmp`: a word clock (see below).
 - `/pics.bmp`: a redirect to a random black and white photo from Unsplash.
 
 ### Configuration
@@ -209,3 +210,10 @@ So I used OpenWeatherMap's API for the weather and clothing icons.  However, it 
 tomorrow.io seemed inaccurate.  Two days before a big Nor'easter (snow storm), that was all over the news as a sure thing, it only gave an 80% chance of precipitation, whereas other weather outlets were all saying 100% chance.  Also, their slack channel, which they say to use for support, was dead, and what they returned in their results didn't match the documentation.
 
 So I moved to visual crossing.  Works well, and I've been happy every since!
+
+## Word clock
+
+`wordclock.py` draws a word clock, to the minute: "IT IS TWENTY SEVEN MINUTES
+TO SIX PM". The server sends it at `/wordclock.bmp`. To check the grid and write
+preview images, run `python3 wordclock.py OUTPUT_DIR [HH:MM]`. The design of
+the letter grid is in `tasks/2026-11-18-wordclock/PLAN.md`.

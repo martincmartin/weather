@@ -1,0 +1,42 @@
+20 x 9, apostrophe own cell, priority shares,fillers,inversions, A from bare
+       44 s: fillers 6, shares 1, inversions 87, bound -161000
+       44 s: fillers 6, shares 1, inversions 85, bound -161000
+       44 s: fillers 6, shares 1, inversions 83, bound -161000
+       45 s: fillers 5, shares 1, inversions 81, bound -161000
+       45 s: fillers 5, shares 1, inversions 79, bound -161000
+       45 s: fillers 5, shares 1, inversions 77, bound -161000
+       45 s: fillers 5, shares 1, inversions 75, bound -161000
+       45 s: fillers 5, shares 1, inversions 73, bound -161000
+       45 s: fillers 5, shares 1, inversions 67, bound -161000
+       45 s: fillers 5, shares 1, inversions 65, bound -161000
+       45 s: fillers 5, shares 1, inversions 58, bound -161000
+       45 s: fillers 5, shares 1, inversions 56, bound -161000
+       45 s: fillers 5, shares 1, inversions 55, bound -161000
+       45 s: fillers 5, shares 1, inversions 54, bound -161000
+       46 s: fillers 5, shares 1, inversions 53, bound -161000
+       46 s: fillers 5, shares 1, inversions 47, bound -161000
+       46 s: fillers 5, shares 1, inversions 46, bound -161000
+       46 s: fillers 5, shares 1, inversions 44, bound -161000
+       48 s: fillers 5, shares 1, inversions 43, bound -161000
+       50 s: fillers 5, shares 1, inversions 41, bound -161000
+       55 s: fillers 5, shares 1, inversions 40, bound -161000
+       55 s: fillers 5, shares 1, inversions 38, bound -161000
+       55 s: fillers 5, shares 1, inversions 37, bound -161000
+       55 s: fillers 5, shares 1, inversions 35, bound -161000
+       56 s: fillers 5, shares 1, inversions 34, bound -161000
+       58 s: fillers 5, shares 1, inversions 33, bound -161000
+       58 s: fillers 5, shares 1, inversions 32, bound -161000
+       60 s: fillers 5, shares 1, inversions 31, bound -161000
+OPTIMAL: fillers 5, shares 1, inversions 31, best bound 1005031 of 1005031
+881 s
+    "ITkISpTWENTYTHIRTEEN",
+    "AONETWOTHREEFOURTEEN",
+    "TENSEVENTEENEIGHTEEN",
+    "ELEVENSIXTEENINETEEN",
+    "TWELVEQUARTERMINUTES",
+    "FIVEHALFTOPASTzTHREE",
+    "ONETWOFOURFIVESIXTEN",
+    "SEVENEIGHTNINEELEVEN",
+    "TWELVEqO’CLOCKjAMPMx",
+    hour_start=(5, 15)
+All 1440 minutes light the intended cells.

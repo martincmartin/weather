@@ -8,7 +8,7 @@ sudo apt-get update && sudo apt-get full-upgrade -y
 # Copy config.example.toml to config.toml, and fill in your API keys and
 # locations. Then copy over the scripts, the settings, the fonts and the icons:
 
-scp -r weather.py moon.py config.toml DejaVuSans.ttf clothing-icons weather-icons moon-phase raspberrypi:/home/[user]/weather
+scp -r weather.py wordclock.py moon.py config.toml DejaVuSans.ttf AtkinsonHyperlegibleMono-Bold.otf clothing-icons weather-icons moon-phase raspberrypi:/home/[user]/weather
 
 **********  systemd service
 

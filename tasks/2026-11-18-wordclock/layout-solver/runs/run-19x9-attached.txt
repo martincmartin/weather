@@ -1,0 +1,2 @@
+19 x 9, apostrophe attached, priority fillers,shares,inversions
+no layout: INFEASIBLE

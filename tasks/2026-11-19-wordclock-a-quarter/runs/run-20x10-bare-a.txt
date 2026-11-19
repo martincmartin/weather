@@ -1,0 +1,63 @@
+20 x 10, apostrophe own cell, priority shares,fillers,inversions, A from bare
+        0 s: fillers 6, shares 6, inversions 79, bound -168000
+        0 s: fillers 6, shares 4, inversions 76, bound -160999
+        0 s: fillers 6, shares 3, inversions 68, bound -160999
+        1 s: fillers 6, shares 0, inversions 32, bound -152999
+        1 s: fillers 5, shares 0, inversions 62, bound -152999
+        1 s: fillers 4, shares 0, inversions 62, bound -152999
+        1 s: fillers 4, shares 0, inversions 58, bound -152999
+        1 s: fillers 4, shares 0, inversions 55, bound -152999
+        1 s: fillers 4, shares 0, inversions 54, bound -152999
+        1 s: fillers 4, shares 0, inversions 37, bound -152999
+        1 s: fillers 4, shares 0, inversions 36, bound -152999
+        1 s: fillers 4, shares 0, inversions 35, bound -145889
+        1 s: fillers 4, shares 0, inversions 26, bound -145889
+        1 s: fillers 4, shares 0, inversions 21, bound -145889
+        1 s: fillers 4, shares 0, inversions 19, bound -145889
+        2 s: fillers 4, shares 0, inversions 16, bound -145889
+        2 s: fillers 4, shares 0, inversions 15, bound -145889
+        2 s: fillers 4, shares 0, inversions 14, bound -145889
+        2 s: fillers 4, shares 0, inversions 13, bound -145889
+        2 s: fillers 4, shares 0, inversions 8, bound -145889
+        2 s: fillers 4, shares 0, inversions 6, bound -145889
+        2 s: fillers 4, shares 0, inversions 5, bound -145889
+        2 s: fillers 3, shares 0, inversions 77, bound -145889
+        2 s: fillers 3, shares 0, inversions 76, bound -145889
+        2 s: fillers 3, shares 0, inversions 61, bound -145889
+        2 s: fillers 3, shares 0, inversions 60, bound -145889
+        2 s: fillers 3, shares 0, inversions 59, bound -145889
+        2 s: fillers 3, shares 0, inversions 58, bound -145889
+        3 s: fillers 3, shares 0, inversions 57, bound -145889
+        3 s: fillers 3, shares 0, inversions 49, bound -145889
+        3 s: fillers 3, shares 0, inversions 48, bound -145889
+        3 s: fillers 3, shares 0, inversions 45, bound -145889
+        3 s: fillers 3, shares 0, inversions 44, bound -145889
+        3 s: fillers 3, shares 0, inversions 43, bound -145889
+        3 s: fillers 3, shares 0, inversions 42, bound -145889
+        3 s: fillers 3, shares 0, inversions 41, bound -145889
+        3 s: fillers 3, shares 0, inversions 40, bound -145889
+        3 s: fillers 3, shares 0, inversions 39, bound -145889
+        3 s: fillers 3, shares 0, inversions 37, bound -145889
+        3 s: fillers 3, shares 0, inversions 36, bound -145889
+        3 s: fillers 3, shares 0, inversions 31, bound -145889
+        3 s: fillers 3, shares 0, inversions 28, bound -145889
+        3 s: fillers 3, shares 0, inversions 26, bound -145889
+        3 s: fillers 3, shares 0, inversions 19, bound -145889
+        3 s: fillers 3, shares 0, inversions 17, bound -145889
+        4 s: fillers 3, shares 0, inversions 15, bound -145889
+        4 s: fillers 3, shares 0, inversions 13, bound -145889
+       46 s: fillers 3, shares 0, inversions 12, bound -83000
+FEASIBLE: fillers 3, shares 0, inversions 12, best bound -61000 of 3012
+1800 s
+    "ITkISpTWENTYAONETWOz",
+    "QUARTERTHREETHIRTEEN",
+    "ELEVENTWELVEFOURTEEN",
+    "FIVESIXTEENSEVENTEEN",
+    "TENEIGHTEENNINETEENq",
+    "MINUTESHALFTOPASTjxv",
+    "ONETWOTHREEFOURFIVEb",
+    "SIXSEVENEIGHTNINETEN",
+    "ELEVENTWELVEmO’CLOCK",
+    "PMAMdgwrycfhlukpzqjx",
+    hour_start=(6, 0)
+All 1440 minutes light the intended cells.

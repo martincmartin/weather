@@ -1,0 +1,13 @@
+20 x 9, apostrophe own cell, priority fillers,shares,inversions
+FEASIBLE: fillers 4, shares 4, inversions 23, best bound -49000000 of 4004023
+    "ITkISpTWENTYQUARTERz",
+    "ONETWOTHREETHIRTEENq",
+    "ELEVENTWELVEFOURTEEN",
+    "FIVESIXTEENSEVENTEEN",
+    "TENEIGHTEENNINETEENj",
+    "MINUTESHALFTOPASTxvb",
+    "TWONETHREEFOURTWELVE",
+    "FIVESIXSEVENINELEVEN",
+    "EIGHTENmO’CLOCKdPMAM",
+    hour_start=(6, 0)
+All 1440 minutes light the intended cells.

@@ -1,0 +1,38 @@
+20 x 9, apostrophe own cell, priority shares,fillers,inversions, A from half
+       17 s: fillers 6, shares 1, inversions 63, bound -167000
+       17 s: fillers 6, shares 1, inversions 62, bound -167000
+       17 s: fillers 6, shares 1, inversions 61, bound -167000
+       17 s: fillers 6, shares 1, inversions 60, bound -167000
+       17 s: fillers 6, shares 1, inversions 59, bound -167000
+       17 s: fillers 6, shares 1, inversions 58, bound -167000
+       17 s: fillers 6, shares 1, inversions 57, bound -167000
+       17 s: fillers 6, shares 1, inversions 56, bound -167000
+       17 s: fillers 6, shares 1, inversions 55, bound -167000
+       17 s: fillers 6, shares 1, inversions 54, bound -167000
+       17 s: fillers 6, shares 1, inversions 53, bound -167000
+       17 s: fillers 6, shares 1, inversions 52, bound -167000
+       17 s: fillers 6, shares 1, inversions 51, bound -167000
+       17 s: fillers 6, shares 1, inversions 49, bound -167000
+       17 s: fillers 6, shares 1, inversions 48, bound -167000
+       17 s: fillers 6, shares 1, inversions 42, bound -167000
+       17 s: fillers 6, shares 1, inversions 41, bound -165000
+       17 s: fillers 6, shares 1, inversions 38, bound -165000
+       18 s: fillers 6, shares 1, inversions 37, bound -165000
+       18 s: fillers 6, shares 1, inversions 35, bound -165000
+       18 s: fillers 6, shares 1, inversions 23, bound -164000
+       18 s: fillers 6, shares 1, inversions 22, bound -164000
+       19 s: fillers 6, shares 1, inversions 20, bound -164000
+       19 s: fillers 6, shares 1, inversions 19, bound -164000
+OPTIMAL: fillers 6, shares 1, inversions 19, best bound 1006019 of 1006019
+1229 s
+    "ITkISpTWENTYTENTWONE",
+    "ELEVENTWELVETHIRTEEN",
+    "THREEFOURTEENSIXTEEN",
+    "SEVENTEENHALFQUARTER",
+    "FIVEEIGHTEENNINETEEN",
+    "MINUTESzTOPASTqTHREE",
+    "ONETWOFOURFIVESIXTEN",
+    "SEVENEIGHTNINEELEVEN",
+    "TWELVEjO’CLOCKxAMPMv",
+    hour_start=(5, 15)
+All 1440 minutes light the intended cells.

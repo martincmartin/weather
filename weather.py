@@ -70,6 +70,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import moon
+import wordclock
 
 # The screen is 800 x 480.
 
@@ -220,7 +221,7 @@ class Config:
 
 
 # The pages that a location cannot take, since the server has them already.
-FIXED_PAGES = {"weather", "stargazing", "pics", "pics_old"}
+FIXED_PAGES = {"weather", "stargazing", "wordclock", "pics", "pics_old"}
 
 
 def load_config(path: Path) -> Config:
@@ -1277,6 +1278,10 @@ class WeatherHTTPRequestHandler(BaseHTTPRequestHandler):
                 print(f"***** Stargazing at {CONFIG.stargazing.name}!", flush=True)
                 image = get_stargazing(CONFIG.stargazing)
                 self.send_image(image)
+
+            elif self.path == "/wordclock.bmp":
+                print("***** What time is it?", flush=True)
+                self.send_image(wordclock.render(datetime.datetime.now()))
 
             elif self.path == "/pics_old.bmp":
                 print("***** Dogs are cute", flush=True)
